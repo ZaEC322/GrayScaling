@@ -6,9 +6,6 @@ using System.Runtime.InteropServices;
 
 string ImgPath = "E:\\School\\Master\\Diploma\\fishTEST";
 
-
-
-Console.WriteLine("ResizeBitmap + FlipBitmapHorizontal");
 var paths = Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
                 .ToList();
 foreach (var item in paths)
@@ -16,7 +13,7 @@ foreach (var item in paths)
     Console.WriteLine(item);
     transform1(item);
 }
-Console.WriteLine("FlipBitmapVertical");
+
 paths = Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
                 .ToList();
 foreach (var item in paths)
@@ -24,7 +21,6 @@ foreach (var item in paths)
     Console.WriteLine(item);
     transform2(item);
 }
-Console.WriteLine("RotationOnDegree");
 
 paths = Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
                 .ToList();
