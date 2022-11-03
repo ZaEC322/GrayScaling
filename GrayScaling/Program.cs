@@ -12,29 +12,43 @@ internal class Program
         string ImgPath = "E:\\School\\Master\\Diploma\\test";
 
         const int OptimalImageCount = 1000;
+        const int ImageWidth = 224;
+        const int ImageHeight = 224;
 
-        //Спочатку всі фото в потрібний розмір (224х224)
-        foreach (var item in Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
-                       .ToList())
+       
+        
+        Parallel.ForEach(Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
+                       .ToList(), item =>
         {
-            Perform_Resize(item);
+            Perform_Resize(item, ImageWidth, ImageHeight);
             Console.WriteLine("Resize " + item);
-        }
+        });
 
-        /*int countDirectories = Directory.GetDirectories(ImgPath, "*.png", SearchOption.AllDirectories).Count();*/
+        #region nonParalell
+       /* //Спочатку всі фото в потрібний розмір (224х224)
+         foreach (var item in Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
+                        .ToList())
+          {
+             Perform_Resize(item, ImageWidth, ImageHeight);
+             Console.WriteLine("Resize " + item);
+          }
+         */
+        #endregion nonParalell
+
 
         //отримуємо колекцію шляхів всіх каталогів(класів розпізнавання)
-        var directories = CustomSearcher.GetDirectories(ImgPath);
+        List<string> directories = CustomSearcher.GetDirectories(ImgPath);
 
+
+        #region nonParalell
+
+        /*
         //у кожному каталозі
         foreach (string item in directories)
         {
 
-            //Кількість фото у каталозі
-            int imageCount = Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count();
-
             //якщо не вистачає файлів у каталозі 
-            if (imageCount<OptimalImageCount)
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
             {
                 //беремо усі файли у директорії
                 foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
@@ -44,11 +58,11 @@ internal class Program
                     Perform_FlipBitmapHorizontal(item1);
                     Console.WriteLine("FlipHorizontal " + item1);
                 }
-                imageCount = imageCount * 2;
+                
             }
 
             //якщо не вистачає файлів у каталозі 
-            if (imageCount<OptimalImageCount)
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
             {
                 //беремо усі файли у директорії
                 foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
@@ -58,44 +72,98 @@ internal class Program
                     Perform_FlipBitmapVertical(item1);
                     Console.WriteLine("FlipVertical " + item1);
                 }
-                imageCount = imageCount * 2;
+               
             }
 
-            if (imageCount<OptimalImageCount)
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
             {
 
-                int y = Convert.ToInt32(Math.Ceiling(180/Math.Ceiling(OptimalImageCount/(double)imageCount)));
-
-                //int y = 0;
+                int y = Convert.ToInt32(Math.Ceiling(180/Math.Ceiling(OptimalImageCount/(double)Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count())));
 
                 //беремо усі файли у директорії
                 foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
                        .ToList())
                 {
                     //x*y
-                    Perform_RotationOnDegree(item1, y);
-                    Console.WriteLine("RotationOnDegree " + item1);
+                    if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+                    {
+                        Perform_RotationOnDegree(item1, y);
+                        Console.WriteLine("RotationOnDegree " + item1);
+                    }
+
                 }
             }
+        }*/
+        #endregion nonParalell
 
-        }
-        /*ЗРОБИТИ ПАРАЛЕЛІЗМ*/
+        #region Paralell
+
+        Parallel.ForEach(directories, item => {
+            //Кількість фото у каталозі
+
+            Thread.Sleep(10);
+            //якщо не вистачає файлів у каталозі 
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+            {
+
+                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
+                       .ToList(), item1 =>
+                       {
+                           //x*2
+                           Perform_FlipBitmapHorizontal(item1);
+                           Console.WriteLine("FlipHorizontal " + item1);
+                       });
+
+            }
+            Thread.Sleep(10);
+            //якщо не вистачає файлів у каталозі 
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+            {
+
+                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
+                      .ToList(), item1 =>
+                      {
+                          //x*2
+                          Perform_FlipBitmapVertical(item1);
+                          Console.WriteLine("FlipVertical " + item1);
+                      });
+
+
+            }
+            Thread.Sleep(10);
+            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+            {
+                Thread.Sleep(10);
+                // y = кут на який буде обертатись зображення кожну ітерацію
+                int y = Convert.ToInt32(Math.Ceiling(180/Math.Ceiling(OptimalImageCount/(double)Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count())));
+
+                //беремо усі файли у директорії
+                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
+                     .ToList(), (item1, state) =>
+                     {
+                         if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count() >= OptimalImageCount)
+                             state.Break();
+                         //x*y
+                         Perform_RotationOnDegree(item1, y);
+                         Console.WriteLine("RotationOnDegree " + item1);
+                     });
+
+            }
+        });
+        #endregion Paralell
     }
 
     // x*1
-    static void Perform_Resize(string FileName1)
+    static void Perform_Resize(string FileName1, int Width, int Height)
     {
         using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
         {
             using (Bitmap? image = new Bitmap(ms))
             {
                 File.Delete(FileName1.ToString());
-                ResizeBitmap(image, 224, 224).Save(FileName1);
+                ResizeBitmap(image, Width, Height).Save(FileName1);
             }
         }
-
-
-
     }
 
     // x * 2
@@ -112,15 +180,11 @@ internal class Program
                                                  + Path.GetExtension(FileName1));
             }
         }
-
-
     }
 
     // x * 2 кількість зображень подвоююється
     static void Perform_FlipBitmapVertical(string FileName1)
     {
-
-
         using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
         {
             using (Bitmap? image = new Bitmap(ms))
@@ -150,13 +214,9 @@ internal class Program
                                                  + "_RotationOnDegree" + i
                                                  + Path.GetExtension(FileName1));
                 }
-
-
             }
         }
-
     }
-
 
     static Bitmap FlipBitmapHorizontal(Bitmap original)
     {
@@ -221,7 +281,6 @@ internal class Program
         }
         return result;
     }
-
 }
 
 public class CustomSearcher
@@ -239,7 +298,6 @@ public class CustomSearcher
 
         return directories;
     }
-
     private static List<string> GetDirectories(string path, string searchPattern)
     {
         try
