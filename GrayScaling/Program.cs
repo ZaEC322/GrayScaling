@@ -4,219 +4,216 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using System.Threading;
-
+using System.Linq;
 internal class Program
 {
     private static void Main(string[] args)
     {
-        string ImgPath = "E:\\School\\Master\\Diploma\\test";
+        const string ImgPath = "E:\\School\\Master\\Diploma\\test\\qqq";
 
-        const int OptimalImageCount = 1000;
+        const int DesiredImageCount = 200;
         const int ImageWidth = 224;
         const int ImageHeight = 224;
 
-       
-        
-        Parallel.ForEach(Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
-                       .ToList(), item =>
+        const int HorisontalFlipMultiplier = 2;
+        const int VerticalFlipMultiplier = 2;
+
+        const int maxRotation = 179;
+        const int minRotation = 1;
+
+
+        static List<string> GetFiles(string DirectoryPath)
         {
-            Perform_Resize(item, ImageWidth, ImageHeight);
-            Console.WriteLine("Resize " + item);
-        });
+            List<string> list = Directory.GetFiles(DirectoryPath, "*.png*", SearchOption.AllDirectories).ToList();
 
-        #region nonParalell
-       /* //Спочатку всі фото в потрібний розмір (224х224)
-         foreach (var item in Directory.GetFiles(ImgPath, "*.png*", SearchOption.AllDirectories)
-                        .ToList())
-          {
-             Perform_Resize(item, ImageWidth, ImageHeight);
-             Console.WriteLine("Resize " + item);
-          }
-         */
-        #endregion nonParalell
+            return list;
+        }
 
+      
+
+
+
+
+        //Без зележності від каталогу збираємо усі фото з усіх каталогів і виконуємо Resize
+        Perform_Resize(GetFiles(ImgPath), ImageWidth, ImageHeight);
 
         //отримуємо колекцію шляхів всіх каталогів(класів розпізнавання)
-        List<string> directories = CustomSearcher.GetDirectories(ImgPath);
+        List<string> DirectoriesList = CustomSearcher.GetDirectories(ImgPath);
 
 
-        #region nonParalell
 
-        /*
-        //у кожному каталозі
-        foreach (string item in directories)
-        {
+        //для кожного каталогу окремо рахуемо кількість зображень
+        Parallel.ForEach(DirectoriesList, DirectoryPath => {
 
-            //якщо не вистачає файлів у каталозі 
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+            double Result = (double)DesiredImageCount/(double)GetFiles(DirectoryPath).Count();
+
+            // половина або більше
+            if (Result<=2)
+                Perform_FlipBitmapHorizontal(GetFiles(DirectoryPath).Take(DesiredImageCount - GetFiles(DirectoryPath).Count()).ToList());
+
+            //приблизно чверть від необхідного
+            else if (Result>2 && Result<=4)
             {
-                //беремо усі файли у директорії
-                foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                       .ToList())
+                Perform_FlipBitmapHorizontal(GetFiles(DirectoryPath));
+
+                // List<string> ass = (List<string>)GetFiles(DirectoryPath).Where((x, i) => i % 2 == 0);
+
+
+
+                int u = GetFiles(DirectoryPath).Count / ( DesiredImageCount - GetFiles(DirectoryPath).Count);
+
+                List<string> files = new List<string>();
+
+                for (int i = 0; i < GetFiles(DirectoryPath).Count; i = i + u)
                 {
-                    //x*2
-                    Perform_FlipBitmapHorizontal(item1);
-                    Console.WriteLine("FlipHorizontal " + item1);
+                    files.Add(GetFiles(DirectoryPath)[i]);
+                }
+
+
+
+
+
+
+                //обирати кожен u елемент з ліста
+                Perform_FlipBitmapVertical(files);
+            }
+
+
+            
+
+
+
+
+            //менше четверті від необхідного
+            else if (Result>4)
+            {
+
+                Perform_FlipBitmapHorizontal(GetFiles(DirectoryPath));
+                Perform_FlipBitmapVertical(GetFiles(DirectoryPath));
+
+
+                /*                int u = GetFiles(DirectoryPath).Count / ( DesiredImageCount - GetFiles(DirectoryPath).Count);
+
+                List<string> files = new List<string>();
+
+                for (int i = 0; i < GetFiles(DirectoryPath).Count; i = i + u)
+                {
+                    files.Add(GetFiles(DirectoryPath)[i]);
                 }
                 
+                 шоб заработало чекнуть совместимость єтого куска куда с degree()
+                 
+                 */
+
+
+                Perform_RotationOnDegree(GetFiles(DirectoryPath), Degree());
+
             }
 
-            //якщо не вистачає файлів у каталозі 
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
+            int Degree()
             {
-                //беремо усі файли у директорії
-                foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                       .ToList())
-                {
-                    //x*2
-                    Perform_FlipBitmapVertical(item1);
-                    Console.WriteLine("FlipVertical " + item1);
-                }
-               
+                Result = maxRotation/(Result/(HorisontalFlipMultiplier * VerticalFlipMultiplier));
+
+                if (Result<minRotation)
+                    return minRotation;
+                else if (Result>maxRotation)
+                    return maxRotation;
+                else
+                    return Convert.ToInt32(Math.Round(Result));
             }
 
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
-            {
-
-                int y = Convert.ToInt32(Math.Ceiling(180/Math.Ceiling(OptimalImageCount/(double)Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count())));
-
-                //беремо усі файли у директорії
-                foreach (var item1 in Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                       .ToList())
-                {
-                    //x*y
-                    if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
-                    {
-                        Perform_RotationOnDegree(item1, y);
-                        Console.WriteLine("RotationOnDegree " + item1);
-                    }
-
-                }
-            }
-        }*/
-        #endregion nonParalell
-
-        #region Paralell
-
-        Parallel.ForEach(directories, item => {
-            //Кількість фото у каталозі
-
-            Thread.Sleep(10);
-            //якщо не вистачає файлів у каталозі 
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
-            {
-
-                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                       .ToList(), item1 =>
-                       {
-                           //x*2
-                           Perform_FlipBitmapHorizontal(item1);
-                           Console.WriteLine("FlipHorizontal " + item1);
-                       });
-
-            }
-            Thread.Sleep(10);
-            //якщо не вистачає файлів у каталозі 
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
-            {
-
-                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                      .ToList(), item1 =>
-                      {
-                          //x*2
-                          Perform_FlipBitmapVertical(item1);
-                          Console.WriteLine("FlipVertical " + item1);
-                      });
 
 
-            }
-            Thread.Sleep(10);
-            if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count()<OptimalImageCount)
-            {
-                Thread.Sleep(10);
-                // y = кут на який буде обертатись зображення кожну ітерацію
-                int y = Convert.ToInt32(Math.Ceiling(180/Math.Ceiling(OptimalImageCount/(double)Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count())));
 
-                //беремо усі файли у директорії
-                Parallel.ForEach(Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories)
-                     .ToList(), (item1, state) =>
-                     {
-                         if (Directory.GetFiles(item, "*.png*", SearchOption.AllDirectories).Count() >= OptimalImageCount)
-                             state.Break();
-                         //x*y
-                         Perform_RotationOnDegree(item1, y);
-                         Console.WriteLine("RotationOnDegree " + item1);
-                     });
-
-            }
         });
-        #endregion Paralell
-    }
-
-    // x*1
-    static void Perform_Resize(string FileName1, int Width, int Height)
-    {
-        using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
-        {
-            using (Bitmap? image = new Bitmap(ms))
-            {
-                File.Delete(FileName1.ToString());
-                ResizeBitmap(image, Width, Height).Save(FileName1);
-            }
-        }
-    }
-
-    // x * 2
-    static void Perform_FlipBitmapHorizontal(string FileName1)
-    {
-        using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
-        {
-            using (Bitmap? image = new Bitmap(ms))
-            {
-                FlipBitmapHorizontal(image).Save(Path.GetDirectoryName(FileName1)
-                                                 + Path.DirectorySeparatorChar
-                                                 + Path.GetFileNameWithoutExtension(FileName1)
-                                                 + "_FlipedHorizontal"
-                                                 + Path.GetExtension(FileName1));
-            }
-        }
-    }
-
-    // x * 2 кількість зображень подвоююється
-    static void Perform_FlipBitmapVertical(string FileName1)
-    {
-        using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
-        {
-            using (Bitmap? image = new Bitmap(ms))
-            {
-                FlipBitmapVertical(image).Save(Path.GetDirectoryName(FileName1)
-                                                 + Path.DirectorySeparatorChar
-                                                 + Path.GetFileNameWithoutExtension(FileName1)
-                                                 + "_FlipVertical"
-                                                 + Path.GetExtension(FileName1));
-            }
-        }
     }
 
     //x * y де 'x' це кількість зображень а 'y' це у скількі раз треба збільшити кільксть зображень до необхідної (OptimalImageCount)
-    static void Perform_RotationOnDegree(string FileName1, int y)
+    static void Perform_RotationOnDegree(List<string> ImagesFromDirectoryPath, int Degree)
     {
-
-        using (var ms = new MemoryStream(File.ReadAllBytes(FileName1)))
+        //беремо усі файли у директорії
+        Parallel.ForEach(ImagesFromDirectoryPath, (ImagePath) =>
         {
-            using (Bitmap? image = new Bitmap(ms))
+            //x*y
+
+            using (var ms = new MemoryStream(File.ReadAllBytes(ImagePath)))
             {
-                for (int i = y; i < 180; i = i + y)
+                using (Bitmap? image = new Bitmap(ms))
                 {
-                    RotationOnDegree(image, i).Save(Path.GetDirectoryName(FileName1)
-                                                 + Path.DirectorySeparatorChar
-                                                 + Path.GetFileNameWithoutExtension(FileName1)
-                                                 + "_RotationOnDegree" + i
-                                                 + Path.GetExtension(FileName1));
+                    for (int i = Degree; i < 180; i = i + Degree)
+                    {
+                        RotationOnDegree(image, i).Save(Path.GetDirectoryName(ImagePath)
+                                                     + Path.DirectorySeparatorChar
+                                                     + Path.GetFileNameWithoutExtension(ImagePath)
+                                                     + "_RotationOnDegree" + i
+                                                     + Path.GetExtension(ImagePath));
+                    }
                 }
             }
-        }
+
+            Console.WriteLine("RotationOnDegree " + ImagePath);
+        });
     }
+
+
+    static void Perform_Resize(List<string> ImagesFromDirectoryPath, int Width, int Height)
+    {
+        //змінююємо розмір всім зображенням не залежно від каталогу
+        Parallel.ForEach(ImagesFromDirectoryPath, ImgPath =>
+                       {
+                           using (var ms = new MemoryStream(File.ReadAllBytes(ImgPath)))
+                           {
+                               using (Bitmap? image = new Bitmap(ms))
+                               {
+                                   File.Delete(ImgPath.ToString());
+                                   ResizeBitmap(image, Width, Height).Save(ImgPath);
+                               }
+                           }
+                           Console.WriteLine("Resize " + ImgPath);
+                       });
+    }
+
+
+    static void Perform_FlipBitmapHorizontal(List<string> ImagesFromDirectoryPath)
+    {
+        Parallel.ForEach(ImagesFromDirectoryPath, ImagePath =>
+        {
+            //x*2
+            using (var ms = new MemoryStream(File.ReadAllBytes(ImagePath)))
+            {
+                using (Bitmap? image = new Bitmap(ms))
+                {
+                    FlipBitmapHorizontal(image).Save(Path.GetDirectoryName(ImagePath)
+                                                     + Path.DirectorySeparatorChar
+                                                     + Path.GetFileNameWithoutExtension(ImagePath)
+                                                     + "_FlipedHorizontal"
+                                                     + Path.GetExtension(ImagePath));
+                }
+            }
+            Console.WriteLine("FlipHorizontal " + ImagePath);
+        });
+    }
+
+    static void Perform_FlipBitmapVertical(List<string> ImagesFromDirectoryPath)
+    {
+        Parallel.ForEach(ImagesFromDirectoryPath, ImagePath =>
+        {
+            //x*2
+            using (var ms = new MemoryStream(File.ReadAllBytes(ImagePath)))
+            {
+                using (Bitmap? image = new Bitmap(ms))
+                {
+                    FlipBitmapVertical(image).Save(Path.GetDirectoryName(ImagePath)
+                                                     + Path.DirectorySeparatorChar
+                                                     + Path.GetFileNameWithoutExtension(ImagePath)
+                                                     + "_FlipVertical"
+                                                     + Path.GetExtension(ImagePath));
+                }
+            }
+            Console.WriteLine("FlipVertical " + ImagePath);
+        });
+    }
+
 
     static Bitmap FlipBitmapHorizontal(Bitmap original)
     {
