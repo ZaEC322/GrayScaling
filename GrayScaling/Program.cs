@@ -7,12 +7,14 @@ namespace GrayScaling
     {
         private static void Main()
         {
-            const string ImgPath = "E:\\School\\Master\\Diploma\\test datasets\\www";
-
+            //тут адреса каталогу з програмою
+            const string ImgPath = "";
+            //бажана кількість зображень
             const int DesiredImageCount = 1000;
+            //бажана роздільність
             const int ImageWidth = 224;
             const int ImageHeight = 224;
-
+            //максимальний кут обертання
             const int maxRotation = 179;
 
             static List<string> GetFiles(string DirectoryPath)
@@ -24,7 +26,7 @@ namespace GrayScaling
             Perform_Resize(GetFiles(ImgPath), ImageWidth, ImageHeight);
 
             //отримуємо колекцію шляхів всіх каталогів(класів розпізнавання)
-            List<string> DirectoriesList = CustomSearcher.GetDirectories(ImgPath);
+            List<string> DirectoriesList = CustomSearch.GetDirectories(ImgPath);
 
             //для кожного каталогу окремо рахуемо кількість зображень
             Parallel.ForEach(DirectoriesList, DirectoryPath =>
@@ -162,6 +164,7 @@ namespace GrayScaling
                                Console.WriteLine("Resize " + ImgPath);
                            });
         }
+
         //виконуємо переворот горизонтальний
         private static void Perform_FlipBitmapHorizontal(List<string> ImagesFromDirectoryPath)
         {
@@ -180,6 +183,7 @@ namespace GrayScaling
                 Console.WriteLine("FlipHorizontal " + ImagePath);
             });
         }
+
         //виконуємо переворот вертикальний
         private static void Perform_FlipBitmapVertical(List<string> ImagesFromDirectoryPath)
         {
@@ -250,39 +254,41 @@ namespace GrayScaling
                 int newHeight = Convert.ToInt32(original.Height * ratio);
                 int newWidth = Convert.ToInt32(original.Width * ratio);
 
-                // Тепер обчислюємо положення X,Y верхнього лівого кута (одне з них завжди буде дорівнювати нулю)
+                // Тепер обчислюємо положення X,Y верхнього лівого кута (одне з них завжди буде
+                // дорівнювати нулю)
                 int posX = Convert.ToInt32((canvasWidth - (original.Width * ratio)) / 2);
                 int posY = Convert.ToInt32((canvasHeight - (original.Height * ratio)) / 2);
 
                 g.Clear(Color.Transparent); // Прозора оболонка
                 g.DrawImage(original, posX, posY, newWidth, newHeight);
-
             }
             return result;
         }
     }
 
-    public static class CustomSearcher
+    //Цілком можливо, що ми отримаємо виключення UnauthorizedAccessException, якщо потрапимо в каталог, до якого у нас нема доступу.
+    // Тому доведеться створити свій власний метод, який обробляє виключення, наприклад, так:
+    public static class CustomSearch
     {
-        public static List<string> GetDirectories(string path, string searchPattern = "*",
-            SearchOption searchOption = SearchOption.AllDirectories)
+        public static List<string> GetDirectories(string path, string searchPatt = "*",
+            SearchOption searchOp = SearchOption.AllDirectories)
         {
-            if (searchOption == SearchOption.TopDirectoryOnly)
-                return Directory.GetDirectories(path, searchPattern).ToList();
+            if (searchOp == SearchOption.TopDirectoryOnly)
+                return Directory.GetDirectories(path, searchPatt).ToList();
 
-            var directories = new List<string>(GetDirectories(path, searchPattern));
+            var dir = new List<string>(GetDirectories(path, searchPatt));
 
-            for (var i = 0; i < directories.Count; i++)
-                directories.AddRange(GetDirectories(directories[i], searchPattern));
+            for (var i = 0; i < dir.Count; i++)
+                dir.AddRange(GetDirectories(dir[i], searchPatt));
 
-            return directories;
+            return dir;
         }
 
-        private static List<string> GetDirectories(string path, string searchPattern)
+        private static List<string> GetDirectories(string path, string searchPatt)
         {
             try
             {
-                return Directory.GetDirectories(path, searchPattern).ToList();
+                return Directory.GetDirectories(path, searchPatt).ToList();
             }
             catch (UnauthorizedAccessException)
             {
